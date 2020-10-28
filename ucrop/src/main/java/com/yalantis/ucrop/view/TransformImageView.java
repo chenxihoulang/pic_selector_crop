@@ -231,6 +231,7 @@ public class TransformImageView extends AppCompatImageView {
 
     /**
      * This method calculates rotation angle for given Matrix object.
+     * 获取旋转角度
      */
     public float getMatrixAngle(@NonNull Matrix matrix) {
         return (float) -(Math.atan2(getMatrixValue(matrix, Matrix.MSKEW_X),

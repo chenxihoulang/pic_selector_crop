@@ -21,4 +21,11 @@
         android:layout_marginTop="10dp"
         android:text="Fragment"
         android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btnMatrix"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_fragment"
+        android:text="矩阵操作" />
 </RelativeLayout>
