@@ -4,12 +4,14 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.graphics.Camera;
 import android.graphics.Matrix;
+import android.graphics.Point;
 import android.graphics.RectF;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import java.util.Arrays;
 
@@ -34,7 +36,7 @@ public class MatrixActivity extends AppCompatActivity {
 
                 //括号内参数分别为（上下文，开始角度，结束角度，x轴中心点，y轴中心点，深度，是否扭曲）
                 final Rotate3dAnimation rotation = new Rotate3dAnimation(MatrixActivity.this,
-                        0, 180, centerX, centerY, 0f, true);
+                        0, 360, centerX, centerY, 0f, true);
 
                 rotation.setDuration(3000);                         //设置动画时长
                 rotation.setFillAfter(true);                        //保持旋转后效果
@@ -55,6 +57,18 @@ public class MatrixActivity extends AppCompatActivity {
                 v.startAnimation(animation);
             }
         });
+
+        TextView tvMathTips = findViewById(R.id.tvMathTips);
+
+        Point pointA = new Point(100, 0);
+        Point pointB = new Point(0, 100);
+
+        StringBuilder sbMathMethodText = new StringBuilder();
+        sbMathMethodText.append("getRadian:" + MathUtils.getRadian(pointA, pointB) + "\n");
+        sbMathMethodText.append("radian2Angle:" + MathUtils.radian2Angle(MathUtils.getRadian(pointA, pointB)) + "\n");
+        sbMathMethodText.append("calculateAngleBetweenLinesByCos:" + MathUtils.calculateAngleBetweenLinesByCos(pointA, pointB)+ "\n");
+        sbMathMethodText.append("calculateAngleBetweenLinesByCos:" + MathUtils.calculateAngleBetweenLinesByCos(pointA, pointB));
+        tvMathTips.setText(sbMathMethodText.toString());
 
 
         /**

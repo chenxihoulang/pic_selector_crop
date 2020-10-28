@@ -26,4 +26,14 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:src="@drawable/ic_launcher" />
+
+    <com.luck.pictureselector.AxisView
+        android:layout_width="200dp"
+        android:layout_height="100dp" />
+
+    <TextView
+        android:id="@+id/tvMathTips"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
 </LinearLayout>
