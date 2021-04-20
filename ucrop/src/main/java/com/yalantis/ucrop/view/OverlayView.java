@@ -42,6 +42,7 @@ public class OverlayView extends View {
 
     public static final int FREESTYLE_CROP_MODE_DISABLE = 0;
     public static final int FREESTYLE_CROP_MODE_ENABLE = 1;
+
     public static final int FREESTYLE_CROP_MODE_ENABLE_WITH_PASS_THROUGH = 2;
     public static final boolean DEFAULT_DRAG_FRAME = true;
     public static final boolean DEFAULT_SHOW_CROP_FRAME = true;
@@ -73,8 +74,13 @@ public class OverlayView extends View {
     private Paint mCropGridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Paint mCropFramePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Paint mCropFrameCornersPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    /**
+     * 是否能自由拖动裁剪框进行裁剪
+     */
     @FreestyleMode
     private int mFreestyleCropMode = DEFAULT_FREESTYLE_CROP_MODE;
+
     private float mPreviousTouchX = -1, mPreviousTouchY = -1;
     private int mCurrentTouchCornerIndex = -1;
     private int mTouchPointThreshold;
@@ -91,7 +97,9 @@ public class OverlayView extends View {
      * 裁剪框大小和位置变化事件监听器
      */
     private OverlayViewChangeListener mCallback;
-
+    /**
+     * 是否需要重新设置裁剪框边界
+     */
     private boolean mShouldSetupCropBounds;
 
     {
@@ -269,6 +277,7 @@ public class OverlayView extends View {
 
     /**
      * This method sets aspect ratio for crop bounds.
+     * 设置缩放比例,图片布局完成后或者图片边界变化都会调用
      *
      * @param targetAspectRatio - aspect ratio for image crop (e.g. 1.77(7) for 16:9)
      */
@@ -284,6 +293,7 @@ public class OverlayView extends View {
 
     /**
      * This method setups crop bounds rectangles for given aspect ratio and view size.
+     * 设置裁剪框边界
      * {@link #mCropViewRect} is used to draw crop bounds - uses padding.
      */
     public void setupCropBounds() {
@@ -314,12 +324,16 @@ public class OverlayView extends View {
         updateGridPoints();
     }
 
+    /**
+     * 更新宫格坐标点
+     */
     private void updateGridPoints() {
         mCropGridCorners = RectUtils.getCornersFromRect(mCropViewRect);
         mCropGridCenter = RectUtils.getCenterFromRect(mCropViewRect);
 
         mGridPoints = null;
         mCircularPath.reset();
+        //以裁剪区域中心点坐标添加一个圆
         mCircularPath.addCircle(mCropViewRect.centerX(), mCropViewRect.centerY(),
                 Math.min(mCropViewRect.width(), mCropViewRect.height()) / 2.f, Path.Direction.CW);
     }
@@ -339,6 +353,7 @@ public class OverlayView extends View {
             top = getPaddingTop();
             right = getWidth() - getPaddingRight();
             bottom = getHeight() - getPaddingBottom();
+
             mThisWidth = right - left;
             mThisHeight = bottom - top;
 
@@ -385,7 +400,7 @@ public class OverlayView extends View {
                 mPreviousTouchY = y;
             }
 
-            //一定要注意此变量的值,如果为false的话,根据事件分发原理,后续的所有事件都不触发了
+            //一定要注意此变量的值,如果在Down事件中直接返回false的话,根据事件分发原理,后续的所有事件都不触发了
             return shouldHandle;
         }
 
@@ -412,6 +427,8 @@ public class OverlayView extends View {
             if (mCallback != null) {
                 mCallback.onCropRectUpdated(mCropViewRect);
             }
+
+            //手指抬起后,将裁剪框移动到中间位置
             smoothToCenter();
         }
 
@@ -457,7 +474,7 @@ public class OverlayView extends View {
                     mTempRect.set(touchX, mCropViewRect.top, mCropViewRect.right, touchY);
                 }
                 break;
-            // move rectangle
+            //down事件中为4就会返回false,所以move事件中,对这个方法的调用不会触发这个分支条件
             case 4:
                 mTempRect.offset(touchX - mPreviousTouchX, touchY - mPreviousTouchY);
 
@@ -517,21 +534,6 @@ public class OverlayView extends View {
             return 4;
         }
 
-//        for (int i = 0; i <= 8; i += 2) {
-//
-//            double distanceToCorner;
-//            if (i < 8) { // corners
-//                distanceToCorner = Math.sqrt(Math.pow(touchX - mCropGridCorners[i], 2)
-//                        + Math.pow(touchY - mCropGridCorners[i + 1], 2));
-//            } else { // center
-//                distanceToCorner = Math.sqrt(Math.pow(touchX - mCropGridCenter[0], 2)
-//                        + Math.pow(touchY - mCropGridCenter[1], 2));
-//            }
-//            if (distanceToCorner < closestPointDistance) {
-//                closestPointDistance = distanceToCorner;
-//                closestPointIndex = i / 2;
-//            }
-//        }
         return closestPointIndex;
     }
 
@@ -728,8 +730,8 @@ public class OverlayView extends View {
         Point centerPoint = new Point((getRight() + getLeft()) / 2, (getTop() + getBottom()) / 2);
 
         //中心点的偏移量
-        final int offsetY = (int) (centerPoint.y - mCropViewRect.centerY());
         final int offsetX = (int) (centerPoint.x - mCropViewRect.centerX());
+        final int offsetY = (int) (centerPoint.y - mCropViewRect.centerY());
 
         //移动前裁剪矩形的位置
         final RectF before = new RectF(mCropViewRect);
@@ -740,6 +742,7 @@ public class OverlayView extends View {
         }
         smoothAnimator = ValueAnimator.ofFloat(0, 1);
         smoothAnimator.setDuration(1000);
+        //回弹效果
         smoothAnimator.setInterpolator(new OvershootInterpolator());
         smoothAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             float lastAnimationValue = 0f;

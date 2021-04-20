@@ -33,6 +33,7 @@ public class UCropView extends FrameLayout {
         mViewOverlay = findViewById(R.id.view_overlay);
 
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.ucrop_UCropView);
+        //将属性参数配置放到各自组件中进行解析
         mViewOverlay.processStyledAttributes(a);
         mGestureCropImageView.processStyledAttributes(a);
         a.recycle();
@@ -52,11 +53,20 @@ public class UCropView extends FrameLayout {
 
         //裁剪框变化事件监听器
         mViewOverlay.setOverlayViewChangeListener(new OverlayViewChangeListener() {
+            /**
+             * 裁剪框移动到中心点动画执行完成后会回调,这个时候裁剪框的最终大小就已经确定下来了
+             * @param cropRect
+             */
             @Override
             public void onCropRectUpdated(RectF cropRect) {
                 mGestureCropImageView.setCropRect(cropRect);
             }
 
+            /**
+             * 调整裁剪框大小,会导致裁剪框移动,然后手指抬起时,裁剪框架会通过动画移动到中心点位置,动画执行过程中,会回调这个方法
+             * @param deltaX
+             * @param deltaY
+             */
             @Override
             public void postTranslate(float deltaX, float deltaY) {
                 mGestureCropImageView.postTranslate(deltaX, deltaY);

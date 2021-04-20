@@ -143,7 +143,7 @@ public class CropImageView extends TransformImageView {
      * Updates current crop rectangle with given. Also recalculates image properties and position
      * to fit new crop rectangle.
      * <p>
-     * 设置裁剪矩形
+     * 设置裁剪矩形,裁剪框变化会被调用
      *
      * @param cropRect - new crop rectangle
      */
@@ -644,6 +644,7 @@ public class CropImageView extends TransformImageView {
         if (targetAspectRatioX == SOURCE_IMAGE_ASPECT_RATIO || targetAspectRatioY == SOURCE_IMAGE_ASPECT_RATIO) {
             mTargetAspectRatio = SOURCE_IMAGE_ASPECT_RATIO;
         } else {
+            //设置默认缩放比例
             mTargetAspectRatio = targetAspectRatioX / targetAspectRatioY;
         }
     }
