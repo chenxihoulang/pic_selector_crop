@@ -98,9 +98,10 @@ public class AspectRatioTextView extends AppCompatTextView {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        //此处调用了super,所以会进行正常的文本绘制和字体颜色改变
         super.onDraw(canvas);
 
-        //如果选中,则绘制一个小圆点
+        //如果选中,则绘制一个小圆点,使用的时候,该组件高度必须设置
         if (isSelected()) {
             //获取绘制文本的边界矩形区域
             canvas.getClipBounds(mCanvasClipBounds);
@@ -157,6 +158,7 @@ public class AspectRatioTextView extends AppCompatTextView {
                 }
         );
 
+        //根据状态设置文本颜色
         setTextColor(textViewColorStateList);
     }
 

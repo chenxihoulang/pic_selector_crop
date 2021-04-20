@@ -23,12 +23,29 @@ public class HorizontalProgressWheelView extends View {
 
     private final Rect mCanvasClipBounds = new Rect();
 
+    /**
+     * 滑动事件监听器
+     */
     private ScrollingListener mScrollingListener;
+    /**
+     * 最后一次触摸的位置坐标
+     */
     private float mLastTouchedPosition;
-
+    /**
+     * 小刻度画笔
+     */
     private Paint mProgressLinePaint;
+    /**
+     * 中间粗线画笔
+     */
     private Paint mProgressMiddleLinePaint;
+    /**
+     * 小刻度线条宽高
+     */
     private int mProgressLineWidth, mProgressLineHeight;
+    /**
+     * 刻度线条间距
+     */
     private int mProgressLineMargin;
 
     /**
@@ -39,7 +56,9 @@ public class HorizontalProgressWheelView extends View {
      * 滑动的总距离
      */
     private float mTotalScrollDistance;
-
+    /**
+     * 中间粗线条颜色
+     */
     private int mMiddleLineColor;
 
     public HorizontalProgressWheelView(Context context) {
@@ -58,6 +77,7 @@ public class HorizontalProgressWheelView extends View {
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public HorizontalProgressWheelView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
+        init();
     }
 
     public void setScrollingListener(ScrollingListener scrollingListener) {
@@ -109,7 +129,7 @@ public class HorizontalProgressWheelView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        //获取Canvas裁剪界限,获取组件可绘制区域的边界矩形
+        //获取Canvas裁剪界限,获取组件可绘制区域的边界矩形,超出裁剪区域的绘制不显示
         canvas.getClipBounds(mCanvasClipBounds);
 
         //可绘制的线条总数
@@ -130,7 +150,7 @@ public class HorizontalProgressWheelView extends View {
 
             /**
              * 绘制刻度线,因为绘制线条或者边框等绘制的时候,一般是通过画笔的StrokeWidth来做的,
-             * 在绘制的时候是参照StrokeWidth/2的位置,所以线条的y坐标根据裁剪编辑中心+正负1/4的线条高度来动态计算会比较好
+             * 在绘制的时候是参照StrokeWidth/2的位置,所以线条的y坐标根据中心+正负1/4的线条高度来动态计算会比较好
              */
             canvas.drawLine(
                     -deltaX + mCanvasClipBounds.left + i * (mProgressLineWidth + mProgressLineMargin),
