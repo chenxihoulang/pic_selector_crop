@@ -10,6 +10,7 @@ import com.yalantis.ucrop.util.RotationGestureDetector;
 
 /**
  * Created by Oleksii Shliama (https://github.com/shliama).
+ * 第三层：
  * 监听用户手势，并调用对应的正确的方法
  * 这个类主要就是对手势的监听
  * <p>

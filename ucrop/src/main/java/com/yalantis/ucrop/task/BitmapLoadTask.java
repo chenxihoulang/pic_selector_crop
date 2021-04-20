@@ -84,6 +84,10 @@ public class BitmapLoadTask extends AsyncTask<Void, Void, BitmapLoadTask.BitmapW
         mBitmapLoadCallback = loadCallback;
     }
 
+    /**
+     * 获取Context对象,注意这里是弱引用,
+     * 但doInBackground在使用的过程中,并没有判空,当然一般不会为空,所以作者也没有判空
+     */
     private Context getContext() {
         return mContextWeakReference.get();
     }
@@ -128,7 +132,7 @@ public class BitmapLoadTask extends AsyncTask<Void, Void, BitmapLoadTask.BitmapW
             return new BitmapWorkerResult(new IllegalArgumentException("Bounds for bitmap could not be retrieved from the Uri: [" + mInputUri + "]"));
         }
 
-        //根据最大图片宽高,计算采样缩放比例
+        //根据最大图片宽高,默认是屏幕对角线的宽高,计算采样缩放比例
         options.inSampleSize = BitmapLoadUtils.calculateInSampleSize(options, mRequiredWidth, mRequiredHeight);
         //下面真正的开始解析图片了
         options.inJustDecodeBounds = false;
@@ -160,6 +164,7 @@ public class BitmapLoadTask extends AsyncTask<Void, Void, BitmapLoadTask.BitmapW
         int exifOrientation = BitmapLoadUtils.getExifOrientation(getContext(), mInputUri);
         //获取图片的角度
         int exifDegrees = BitmapLoadUtils.exifToDegrees(exifOrientation);
+        //获取图片是否横向翻转,返回1或-1
         int exifTranslation = BitmapLoadUtils.exifToTranslation(exifOrientation);
 
         ExifInfo exifInfo = new ExifInfo(exifOrientation, exifDegrees, exifTranslation);
@@ -170,10 +175,12 @@ public class BitmapLoadTask extends AsyncTask<Void, Void, BitmapLoadTask.BitmapW
         }
 
         if (exifTranslation != 1) {
+            //-1,进行图片横向翻转
             matrix.postScale(exifTranslation, 1);
         }
 
         if (!matrix.isIdentity()) {
+            //如果图片有变化,先将图片进行矩阵变换后,再返回
             return new BitmapWorkerResult(BitmapLoadUtils.transformBitmap(decodeSampledBitmap, matrix), exifInfo);
         }
 
@@ -186,6 +193,7 @@ public class BitmapLoadTask extends AsyncTask<Void, Void, BitmapLoadTask.BitmapW
     private void processInputUri() throws NullPointerException, IOException {
         String inputUriScheme = mInputUri.getScheme();
         Log.d(TAG, "Uri scheme: " + inputUriScheme);
+        //网络图片
         if ("http".equals(inputUriScheme) || "https".equals(inputUriScheme)) {
             try {
                 //下载网络图片
@@ -201,6 +209,7 @@ public class BitmapLoadTask extends AsyncTask<Void, Void, BitmapLoadTask.BitmapW
                 mInputUri = SdkUtils.isQ() ? mInputUri : Uri.fromFile(new File(path));
             } else {
                 try {
+                    //将原文件拷贝一份
                     copyFile(mInputUri, mOutputUri);
                 } catch (NullPointerException | IOException e) {
                     Log.e(TAG, "Copying failed", e);
@@ -260,6 +269,8 @@ public class BitmapLoadTask extends AsyncTask<Void, Void, BitmapLoadTask.BitmapW
 
             // swap uris, because input image was copied to the output destination
             // (cropped image will override it later)
+
+            //替换文件真实路径
             mInputUri = mOutputUri;
         }
     }
@@ -290,6 +301,7 @@ public class BitmapLoadTask extends AsyncTask<Void, Void, BitmapLoadTask.BitmapW
             }
         } catch (Exception e) {
             e.printStackTrace();
+            throw e;
         } finally {
             // swap uris, because input image was downloaded to the output destination
             // (cropped image will override it later)

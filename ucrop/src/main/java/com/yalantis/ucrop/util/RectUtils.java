@@ -36,7 +36,7 @@ public class RectUtils {
      * |        |
      * |        v
      * 3<-------2
-     * 根据4个顶点的坐标位置,获取矩形的边长
+     * 根据4个顶点的坐标位置,获取矩形的边长,想象矩形有可能已经旋转过某个角度,这个时候边长其实是三角形的斜边长
      *
      * @param corners the float array of corners (8 floats)
      * @return the float array of width and height (2 floats)
@@ -73,13 +73,18 @@ public class RectUtils {
             float x = Math.round(array[i - 1] * 10) / 10.f;
             float y = Math.round(array[i] * 10) / 10.f;
 
+            //左边和上边取小值
             r.left = (x < r.left) ? x : r.left;
             r.top = (y < r.top) ? y : r.top;
+
+            //右边和下边取大值
             r.right = (x > r.right) ? x : r.right;
             r.bottom = (y > r.bottom) ? y : r.bottom;
         }
 
+        //如果矩形翻转了,则交换左右或上下的值
         r.sort();
+
         return r;
     }
 

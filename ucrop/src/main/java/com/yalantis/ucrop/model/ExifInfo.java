@@ -6,7 +6,13 @@ package com.yalantis.ucrop.model;
 public class ExifInfo {
 
     private int mExifOrientation;
+    /**
+     * 图片旋转角度
+     */
     private int mExifDegrees;
+    /**
+     * 图片是否横向翻转,返回1或-1
+     */
     private int mExifTranslation;
 
     public ExifInfo(int exifOrientation, int exifDegrees, int exifTranslation) {

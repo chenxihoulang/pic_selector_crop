@@ -26,8 +26,10 @@ import com.yalantis.ucrop.util.RectUtils;
  * This class provides base logic to setup the image, transform it with matrix (move, scale, rotate),
  * and methods to get current matrix state.
  * <p>
+ * 第一层：
  * 从源拿到图片
  * 将图片进行变换（平移、缩放、旋转），并应用到当前图片上
+ * 这一层并不知道裁剪或者手势等行为
  */
 public class TransformImageView extends AppCompatImageView {
 
@@ -59,20 +61,22 @@ public class TransformImageView extends AppCompatImageView {
      * 组件的宽度和高度
      */
     protected int mThisWidth, mThisHeight;
-
+    /**
+     * 图片旋转缩放监听器
+     */
     protected TransformImageListener mTransformImageListener;
 
     /**
-     * 图片4个角的初始位置
+     * 图片4个角的初始位置,布局完成后,不会变化,变化的只有矩阵
      */
     private float[] mInitialImageCorners;
     /**
-     * 图片中心点初始位置
+     * 图片中心点初始位置,布局完成后,不会变化,变化的只有矩阵
      */
     private float[] mInitialImageCenter;
 
     /**
-     * 图片是否完成解码
+     * 图片是否完成解码,包括图片尺寸缩放和方向旋转
      */
     protected boolean mBitmapDecoded = false;
     /**
@@ -80,9 +84,15 @@ public class TransformImageView extends AppCompatImageView {
      */
     protected boolean mBitmapLaidOut = false;
 
+    /**
+     * 图片最大尺寸,默认为屏幕对角线长度
+     */
     private int mMaxBitmapSize = 0;
 
     private String mImageInputPath, mImageOutputPath;
+    /**
+     * 图片元数据
+     */
     private ExifInfo mExifInfo;
 
     /**
@@ -191,7 +201,10 @@ public class TransformImageView extends AppCompatImageView {
                         mImageOutputPath = imageOutputPath;
                         mExifInfo = exifInfo;
 
+                        //图片加载完成,包括图片尺寸缩放和方向旋转
                         mBitmapDecoded = true;
+
+                        //展示图片,会触发onLayout
                         setImageBitmap(bitmap);
                     }
 
@@ -215,7 +228,13 @@ public class TransformImageView extends AppCompatImageView {
 
     /**
      * This method calculates scale value for given Matrix object.
-     * 获取缩放值
+     * 获取缩放值,我们这是等比例缩放,所以只需要获取x轴方向的缩放比例即可
+     * 这里计算x方向的缩放比例,那么矩阵我们就只需要考虑对x能产生影响的两个值MSCALE_X和MSKEW_Y
+     * 我们计算的缩放比例其实是一个三角形对角线的长度,因为缩放其实是改变坐标点位置,改变的可以任务是向量长度,
+     * x1*scale=x2,那么这个scale是怎么计算的呢?
+     * 想象一个边长为1的正方形通过中心点放大2倍,其实右上角坐标点向右和向上分别移动了1,
+     * 初始右上角向量(点1,1)长度为根号2,放大2倍后的右上角向量(点2,2)长度为2*根号2
+     * 那么移动的比例是怎么计算的呢?Math.sqrt(offsetX*offsetX+offsetY*offsetY)=根号2
      */
     public float getMatrixScale(@NonNull Matrix matrix) {
         return (float) Math.sqrt(Math.pow(getMatrixValue(matrix, Matrix.MSCALE_X), 2)
@@ -232,6 +251,7 @@ public class TransformImageView extends AppCompatImageView {
     /**
      * This method calculates rotation angle for given Matrix object.
      * 获取旋转角度
+     * 不明白为什么这样计算?
      */
     public float getMatrixAngle(@NonNull Matrix matrix) {
         return (float) -(Math.atan2(getMatrixValue(matrix, Matrix.MSKEW_X),
@@ -319,6 +339,7 @@ public class TransformImageView extends AppCompatImageView {
             right = getWidth() - getPaddingRight();
             bottom = getHeight() - getPaddingBottom();
 
+            //图片组件的宽高考虑到了填充
             mThisWidth = right - left;
             mThisHeight = bottom - top;
 
@@ -329,6 +350,8 @@ public class TransformImageView extends AppCompatImageView {
     /**
      * When image is laid out {@link #mInitialImageCorners} and {@link #mInitialImageCenter}
      * must be set.
+     *
+     * 进行图片布局
      */
     protected void onImageLaidOut() {
         final Drawable drawable = getDrawable();
@@ -342,6 +365,7 @@ public class TransformImageView extends AppCompatImageView {
 
         Log.d(TAG, String.format("Image size: [%d:%d]", (int) w, (int) h));
 
+        //真实图片的边框位置
         RectF initialImageRect = new RectF(0, 0, w, h);
 
         //4个角的位置
@@ -349,8 +373,10 @@ public class TransformImageView extends AppCompatImageView {
         //中心点的位置
         mInitialImageCenter = RectUtils.getCenterFromRect(initialImageRect);
 
+        //图片布局完成
         mBitmapLaidOut = true;
 
+        //图片布局完成后,才进行回调
         if (mTransformImageListener != null) {
             mTransformImageListener.onLoadComplete();
         }
@@ -391,6 +417,7 @@ public class TransformImageView extends AppCompatImageView {
      * <p>
      * 更新图片4个角和中心点的位置
      * 每当图片矩阵发生变化时，都会更新图片的中心和角落坐标
+     * 注意:这里图片初始的4个顶点和中心点一直没有变化,变化的只有当前图片矩阵
      */
     private void updateCurrentImagePoints() {
         mCurrentImageMatrix.mapPoints(mCurrentImageCorners, mInitialImageCorners);

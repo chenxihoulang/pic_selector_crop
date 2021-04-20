@@ -30,14 +30,15 @@ import java.util.concurrent.Executors;
  * <p/>
  * This class adds crop feature, methods to draw crop guidelines, and keep image in correct state.
  * Also it extends parent class methods to add checks for scale; animating zoom in/out.
+ * 第二层:
  * 图片裁剪框偏移计算、图片归位动画处理、裁剪图片
- * <p>
- * <p>
  * 绘制裁剪边框和网格
  * 为裁剪区域设置一张图片（如果用户对图片操作导致裁剪区域出现了空白，那么图片应自动移动到边界填充空白区域）
  * 继承父类方法，使用更精准的规则来操作矩阵（限制最大和最小缩放比）
  * 添加放大和缩小的方法
  * 裁剪图片
+ * <p>
+ * 这一层几乎囊括了所有的要对图片进行变换和裁剪的所有操作,但也仅仅是指明了做这些事情的方法，我们还需要支持手势
  */
 public class CropImageView extends TransformImageView {
 
@@ -48,14 +49,14 @@ public class CropImageView extends TransformImageView {
     public static final float DEFAULT_ASPECT_RATIO = SOURCE_IMAGE_ASPECT_RATIO;
 
     /**
-     * 裁剪矩形
+     * 裁剪矩形位置
      */
     private final RectF mCropRect = new RectF();
 
     private final Matrix mTempMatrix = new Matrix();
 
     /**
-     * 宽高比
+     * 图片的宽高比
      */
     private float mTargetAspectRatio;
     /**
@@ -324,7 +325,7 @@ public class CropImageView extends TransformImageView {
      * Scale value must be calculated only if image won't fill the crop bounds after it's translated to the
      * crop bounds rectangle center. Using temporary variables this method checks this case.
      * 第一步：图片裁剪框偏移计算
-     * 当用户手指移开时，要确保图片处于裁剪区域中，如果不处于，需要通过平移把它移过来
+     * 当用户手指移开时，要确保图片处于裁剪区域中，如果不处于，需要通过平移把它移过来,如果平移后还有空白,则缩放
      * <p>
      * 确定在裁剪范围内没有空白区域
      * 计算出所有要做的转换，使得图片可以返回到裁剪区域内
@@ -332,10 +333,10 @@ public class CropImageView extends TransformImageView {
      * 转换图片让其包裹住裁剪区域
      */
     public void setImageToWrapCropBounds(boolean animate) {
-        //如果图片加载完毕并且图片不处于剪裁区域
+        //如果图片加载完毕并且图片不处于剪裁区域内,也就是说裁剪区域超过了图片区域,有空白
         if (mBitmapLaidOut && !isImageWrapCropBounds()) {
 
-            //获取中心点X,Y坐标
+            //获取图片中心点X,Y坐标
             float currentX = mCurrentImageCenter[0];
             float currentY = mCurrentImageCenter[1];
 
@@ -350,6 +351,7 @@ public class CropImageView extends TransformImageView {
             mTempMatrix.reset();
             mTempMatrix.setTranslate(deltaX, deltaY);
 
+            //图片4个顶点的位置坐标
             final float[] tempCurrentImageCorners = Arrays.copyOf(mCurrentImageCorners, mCurrentImageCorners.length);
             //将当前图片的4个顶点坐标进行偏移
             mTempMatrix.mapPoints(tempCurrentImageCorners);
@@ -452,6 +454,7 @@ public class CropImageView extends TransformImageView {
 
     /**
      * When image is laid out it must be centered properly to fit current crop bounds.
+     * 父类TransformImageView会回调
      * 图片布局完成后,根据图片信息计算一些默认值
      */
     @Override
@@ -462,15 +465,19 @@ public class CropImageView extends TransformImageView {
             return;
         }
 
+        //图片的真实宽高
         float drawableWidth = drawable.getIntrinsicWidth();
         float drawableHeight = drawable.getIntrinsicHeight();
 
+        //图片宽高比
         if (mTargetAspectRatio == SOURCE_IMAGE_ASPECT_RATIO) {
+            //drawableWidth:1,drawableHeight:2,mTargetAspectRatio:0.5
+            //drawableWidth:2,drawableHeight:1,mTargetAspectRatio:2
             mTargetAspectRatio = drawableWidth / drawableHeight;
         }
 
         //下面的代码,是让裁剪矩形在图片的正中间位置
-        //根据组件的宽度和宽高比计算高度
+        //根据组件的宽度和图片宽高比计算高度
         int height = (int) (mThisWidth / mTargetAspectRatio);
         //如果计算出来的高度大于组件高度
         if (height > mThisHeight) {
@@ -482,12 +489,15 @@ public class CropImageView extends TransformImageView {
             mCropRect.set(0, halfDiff, mThisWidth, height + halfDiff);
         }
 
+        //计算图片的最小和最大缩放比例
         calculateImageScaleBounds(drawableWidth, drawableHeight);
+        //计算图片初始位置
         setupInitialImagePosition(drawableWidth, drawableHeight);
 
         if (mCropBoundsChangeListener != null) {
             mCropBoundsChangeListener.onCropAspectRatioChanged(mTargetAspectRatio);
         }
+
         if (mTransformImageListener != null) {
             mTransformImageListener.onScale(getCurrentScale());
             mTransformImageListener.onRotate(getCurrentAngle());
@@ -497,6 +507,8 @@ public class CropImageView extends TransformImageView {
     /**
      * This method checks whether current image fills the crop bounds.
      * 检测裁剪区域内是否已经填充满了图片
+     * 如何在一个XY对称的矩形内检测是否包含一个旋转过的矩形?
+     * 只需要检测裁剪区域的四个顶点的坐标是不是都落在了图片区域内就可以了
      */
     protected boolean isImageWrapCropBounds() {
         return isImageWrapCropBounds(mCurrentImageCorners);
@@ -507,10 +519,12 @@ public class CropImageView extends TransformImageView {
      * fills the crop bounds rectangle.
      * <p>
      * 确定图片的4个角是否填充满了裁剪区域
-     * <p>
+     * 核心算法:
      * 如何在一个XY对称的矩形内检测是否包含一个旋转过的矩形
      * 将图片回正,然后将裁剪区域旋转图片的角度
      * 只需要检测裁剪区域的四个顶点的坐标是不是都落在了图片区域内就可以了
+     * <p>
+     * 就是在“正”的矩形内判断是否包含旋转的矩形。所以，将两个矩形同时进行反转，反转的角度就是图片区域旋转的角度
      *
      * @param imageCorners - corners of a rectangle
      * @return - true if it wraps crop bounds, false - otherwise
@@ -523,7 +537,7 @@ public class CropImageView extends TransformImageView {
 
         //目前未旋转的图片4个顶点的坐标副本
         float[] unrotatedImageCorners = Arrays.copyOf(imageCorners, imageCorners.length);
-        //将坐标点进行重新映射,映射后的结果就是图片回正的对应坐标点了
+        //将坐标点进行重新映射,映射后的结果就是图片回正的对应坐标点了,坐标点继续写回到输入参数数组中
         mTempMatrix.mapPoints(unrotatedImageCorners);
 
         //获取裁剪矩形对应的4个顶点
@@ -532,7 +546,8 @@ public class CropImageView extends TransformImageView {
         mTempMatrix.mapPoints(unrotatedCropBoundsCorners);
 
         //判断两个矩形是否有包含关系
-        return RectUtils.trapToRect(unrotatedImageCorners).contains(RectUtils.trapToRect(unrotatedCropBoundsCorners));
+        return RectUtils.trapToRect(unrotatedImageCorners)
+                .contains(RectUtils.trapToRect(unrotatedCropBoundsCorners));
     }
 
     /**
@@ -570,8 +585,8 @@ public class CropImageView extends TransformImageView {
      * This method calculates image minimum and maximum scale values for current {@link #mCropRect}.
      * 计算图片的最小和最大缩放比例
      *
-     * @param drawableWidth  - image width 图片宽度
-     * @param drawableHeight - image height 图片高度
+     * @param drawableWidth  - image width 图片真实宽度
+     * @param drawableHeight - image height 图片真实高度
      */
     private void calculateImageScaleBounds(float drawableWidth, float drawableHeight) {
         float widthScale = Math.min(mCropRect.width() / drawableWidth, mCropRect.width() / drawableHeight);
@@ -584,32 +599,38 @@ public class CropImageView extends TransformImageView {
     /**
      * This method calculates initial image position so it is positioned properly.
      * Then it sets those values to the current image matrix.
+     * <p>
+     * 计算图片初始位置
      *
-     * @param drawableWidth  - image width
-     * @param drawableHeight - image height
+     * @param drawableWidth  - image width 图片真实宽度
+     * @param drawableHeight - image height 图片真实高度
      */
     private void setupInitialImagePosition(float drawableWidth, float drawableHeight) {
         float cropRectWidth = mCropRect.width();
         float cropRectHeight = mCropRect.height();
 
+        //初始裁剪矩形肯定小于等于图片大小,所以下面两个值是小于1的
         float widthScale = mCropRect.width() / drawableWidth;
         float heightScale = mCropRect.height() / drawableHeight;
 
+        //这里取最大值,保证图片不要缩放的太小,至少要保证图片缩放后,仍然包含裁剪矩形
         float initialMinScale = Math.max(widthScale, heightScale);
 
+        //将图片向裁剪矩形中心移动
         float tw = (cropRectWidth - drawableWidth * initialMinScale) / 2.0f + mCropRect.left;
         float th = (cropRectHeight - drawableHeight * initialMinScale) / 2.0f + mCropRect.top;
 
         mCurrentImageMatrix.reset();
         mCurrentImageMatrix.postScale(initialMinScale, initialMinScale);
         mCurrentImageMatrix.postTranslate(tw, th);
+        //设置矩阵值,会重新计算图片4个顶点和中心点的位置,并且会进行重新布局
         setImageMatrix(mCurrentImageMatrix);
     }
 
     /**
      * This method extracts all needed values from the styled attributes.
      * Those are used to configure the view.
-     *
+     * <p>
      * 提取属性值
      */
     @SuppressWarnings("deprecation")

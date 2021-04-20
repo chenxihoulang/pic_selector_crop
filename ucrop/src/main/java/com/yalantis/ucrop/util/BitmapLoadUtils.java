@@ -31,14 +31,21 @@ public class BitmapLoadUtils {
     private static final String TAG = "BitmapLoadUtils";
 
     public static void decodeBitmapInBackground(@NonNull Context context,
-                                                @NonNull Uri uri, @Nullable Uri outputUri,
+                                                @NonNull Uri inputUri, @Nullable Uri outputUri,
                                                 int requiredWidth, int requiredHeight,
                                                 BitmapLoadCallback loadCallback) {
 
-        new BitmapLoadTask(context, uri, outputUri, requiredWidth, requiredHeight, loadCallback)
+        new BitmapLoadTask(context, inputUri, outputUri, requiredWidth, requiredHeight, loadCallback)
                 .executeOnExecutor(Executors.newCachedThreadPool());
     }
 
+    /**
+     * 根据矩阵进行图片变换
+     *
+     * @param bitmap
+     * @param transformMatrix
+     * @return
+     */
     public static Bitmap transformBitmap(@NonNull Bitmap bitmap, @NonNull Matrix transformMatrix) {
         try {
             Bitmap converted = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), transformMatrix, true);
@@ -63,6 +70,7 @@ public class BitmapLoadUtils {
         if (height > reqHeight || width > reqWidth) {
             // Calculate the largest inSampleSize value that is a power of 2 and keeps both
             // height and width lower or equal to the requested height and width.
+
             //计算最大inSampleSize值,该值是2的整数次幂
             while ((height / inSampleSize) > reqHeight || (width / inSampleSize) > reqWidth) {
                 inSampleSize *= 2;
@@ -93,6 +101,12 @@ public class BitmapLoadUtils {
         return orientation;
     }
 
+    /**
+     * 将图片的方向数据转换为角度值
+     *
+     * @param exifOrientation
+     * @return
+     */
     public static int exifToDegrees(int exifOrientation) {
         int rotation;
         switch (exifOrientation) {
