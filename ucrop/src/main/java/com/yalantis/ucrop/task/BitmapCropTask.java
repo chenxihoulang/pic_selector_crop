@@ -116,7 +116,7 @@ public class BitmapCropTask extends AsyncTask<Void, Void, Throwable> {
     private boolean crop() throws IOException {
         // Downsize if needed
         if (mMaxResultImageSizeX > 0 && mMaxResultImageSizeY > 0) {
-            //计算当前裁剪框将要裁剪出的图片真实宽高,
+            //计算当前裁剪框将要裁剪出的图片真实宽高,裁剪框看到的图片有可能是缩放后的图片
             //比如mCurrentScale=2,图片放大了两倍(假如大小等于两个屏幕大小),mCropRect为全屏的时候,只能裁剪出图片的一半
             float cropWidth = mCropRect.width() / mCurrentScale;
             float cropHeight = mCropRect.height() / mCurrentScale;
@@ -126,7 +126,7 @@ public class BitmapCropTask extends AsyncTask<Void, Void, Throwable> {
 
                 float scaleX = mMaxResultImageSizeX / cropWidth;
                 float scaleY = mMaxResultImageSizeY / cropHeight;
-                //根据最大裁剪图片尺寸进行缩放
+                //根据最大裁剪图片尺寸进行缩放,注意这个值小于1
                 float resizeScale = Math.min(scaleX, scaleY);
 
                 //将原图片进行缩放
@@ -137,10 +137,10 @@ public class BitmapCropTask extends AsyncTask<Void, Void, Throwable> {
                 if (mViewBitmap != resizedBitmap) {
                     mViewBitmap.recycle();
                 }
-                //注意这里存储的是缩放后的图片了
+                //注意这里存储的是根据最大裁剪尺寸缩放后的图片了
                 mViewBitmap = resizedBitmap;
 
-                //原图缩放了,当前的缩放比例也要进行缩放
+                //原图缩放了,当前的缩放比例也要进行缩放,由于裁剪区域对应的图片较大,所以需要放大图片,这里是除以
                 mCurrentScale /= resizeScale;
             }
         }
@@ -152,6 +152,7 @@ public class BitmapCropTask extends AsyncTask<Void, Void, Throwable> {
             //根据图片中心点选中图片
             tempMatrix.setRotate(mCurrentAngle, mViewBitmap.getWidth() / 2, mViewBitmap.getHeight() / 2);
 
+            //根据矩阵创建一个旋转后的图片
             Bitmap rotatedBitmap = Bitmap.createBitmap(mViewBitmap, 0, 0,
                     mViewBitmap.getWidth(), mViewBitmap.getHeight(), tempMatrix, true);
 
@@ -177,23 +178,26 @@ public class BitmapCropTask extends AsyncTask<Void, Void, Throwable> {
 
         //需要裁剪
         if (shouldCrop) {
-
-            //获取图片原数据信息
-            ExifInterface originalExif;
-            ParcelFileDescriptor parcelFileDescriptor = null;
-            if (SdkUtils.isQ() && MimeType.isContent(mImageInputPath)) {
-                parcelFileDescriptor =
-                        getContext().getContentResolver().openFileDescriptor(Uri.parse(mImageInputPath), "r");
-                originalExif = new ExifInterface(new FileInputStream(parcelFileDescriptor.getFileDescriptor()));
-            } else {
-                originalExif = new ExifInterface(mImageInputPath);
-            }
-
-            //最核心方法:裁剪图片,就是在原图片上找一块区域,根据改区域对应的图片重新创建一个Bitmap
+            /**
+             *最核心方法:裁剪图片,就是在原图片上找一块区域,根据改区域对应的图片重新创建一个Bitmap
+             */
             saveImage(Bitmap.createBitmap(mViewBitmap, cropOffsetX, cropOffsetY, mCroppedImageWidth, mCroppedImageHeight));
+
+            ParcelFileDescriptor parcelFileDescriptor = null;
 
             //剪裁成功复制图片EXIF信息
             if (mCompressFormat.equals(Bitmap.CompressFormat.JPEG)) {
+                //获取图片原数据信息
+                ExifInterface originalExif;
+                if (SdkUtils.isQ() && MimeType.isContent(mImageInputPath)) {
+                    parcelFileDescriptor =
+                            getContext().getContentResolver().openFileDescriptor(Uri.parse(mImageInputPath), "r");
+                    originalExif = new ExifInterface(new FileInputStream(parcelFileDescriptor.getFileDescriptor()));
+                } else {
+                    originalExif = new ExifInterface(mImageInputPath);
+                }
+
+                //拷贝图片源数据信息到新生成的图片上
                 ImageHeaderParser.copyExif(originalExif, mCroppedImageWidth, mCroppedImageHeight, mImageOutputPath);
             }
 
@@ -203,7 +207,7 @@ public class BitmapCropTask extends AsyncTask<Void, Void, Throwable> {
 
             return true;
         } else {
-            //直接复制图片到目标文件夹
+            //不需要裁剪,则直接复制图片到目标文件夹
             if (SdkUtils.isQ() && MimeType.isContent(mImageInputPath)) {
                 ParcelFileDescriptor parcelFileDescriptor =
                         getContext().getContentResolver().openFileDescriptor(Uri.parse(mImageInputPath), "r");
@@ -219,6 +223,7 @@ public class BitmapCropTask extends AsyncTask<Void, Void, Throwable> {
 
     /**
      * 保存图片
+     *
      * @param croppedBitmap
      * @throws FileNotFoundException
      */
@@ -244,8 +249,8 @@ public class BitmapCropTask extends AsyncTask<Void, Void, Throwable> {
      * 检查是否应完全裁剪图像或仅将文件复制到目标路径。
      * 由于矩阵计算等原因，每1000像素会有1像素的误差
      *
-     * @param width  - crop area width
-     * @param height - crop area height
+     * @param width  - crop area width 裁剪区域宽度
+     * @param height - crop area height 裁剪区域高度
      * @return - true if image must be cropped, false - if original image fits requirements
      */
     private boolean shouldCrop(int width, int height) {

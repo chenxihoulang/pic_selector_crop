@@ -37,6 +37,7 @@ public class RotationGestureDetector {
 
     public boolean onTouchEvent(@NonNull MotionEvent event) {
         switch (event.getActionMasked()) {
+            //第一个手指按下
             case MotionEvent.ACTION_DOWN:
                 sX = event.getX();
                 sY = event.getY();
@@ -44,6 +45,7 @@ public class RotationGestureDetector {
                 mAngle = 0;
                 mIsFirstTouch = true;
                 break;
+            //非第一个手指按下,此处主要指第二个手指按下
             case MotionEvent.ACTION_POINTER_DOWN:
                 fX = event.getX();
                 fY = event.getY();
@@ -52,6 +54,7 @@ public class RotationGestureDetector {
                 mIsFirstTouch = true;
                 break;
             case MotionEvent.ACTION_MOVE:
+                //保证至少有两个手指
                 if (mPointerIndex1 != INVALID_POINTER_INDEX
                         && mPointerIndex2 != INVALID_POINTER_INDEX
                         && event.getPointerCount() > mPointerIndex2) {
@@ -62,6 +65,7 @@ public class RotationGestureDetector {
                     nfX = event.getX(mPointerIndex2);
                     nfY = event.getY(mPointerIndex2);
 
+                    //有新手指按下,旋转角度重置为0
                     if (mIsFirstTouch) {
                         mAngle = 0;
                         mIsFirstTouch = false;
@@ -73,15 +77,17 @@ public class RotationGestureDetector {
                         mListener.onRotation(this);
                     }
 
-                    fX = nfX;
-                    fY = nfY;
                     sX = nsX;
                     sY = nsY;
+                    fX = nfX;
+                    fY = nfY;
                 }
                 break;
+            //最后一个手指抬起时
             case MotionEvent.ACTION_UP:
                 mPointerIndex1 = INVALID_POINTER_INDEX;
                 break;
+            //多个手指,有一个手指抬起
             case MotionEvent.ACTION_POINTER_UP:
                 mPointerIndex2 = INVALID_POINTER_INDEX;
                 break;
@@ -96,11 +102,11 @@ public class RotationGestureDetector {
                                              float sx1, float sy1, float sx2, float sy2) {
         //余弦公式:向量1点乘向量2/(向量1模长*向量2模长)
         //(fx2-fx1,fy2-fy1)*(sx2-sx1,sy2-sy1)/(向量1模长*向量2模长)
-        float v1DotMulV2 = (fx2 - fx1) * (sx2 - sx1) + (fy2 - fy1) * (sy2 - sy1);
-        double v1Norm = Math.sqrt(Math.pow((fx2 - fx1), 2) + Math.pow((fy2 - fy1), 2));
-        double v2Norm = Math.sqrt(Math.pow((sx2 - sx1), 2) + Math.pow((sy2 - sy1), 2));
-        double cosAngle = v1DotMulV2 / (v1Norm * v2Norm);
-        double angle = Math.toDegrees(Math.acos(cosAngle));
+//        float v1DotMulV2 = (fx2 - fx1) * (sx2 - sx1) + (fy2 - fy1) * (sy2 - sy1);
+//        double v1Norm = Math.sqrt(Math.pow((fx2 - fx1), 2) + Math.pow((fy2 - fy1), 2));
+//        double v2Norm = Math.sqrt(Math.pow((sx2 - sx1), 2) + Math.pow((sy2 - sy1), 2));
+//        double cosAngle = v1DotMulV2 / (v1Norm * v2Norm);
+//        double angle = Math.toDegrees(Math.acos(cosAngle));
 
         return calculateAngleDelta(
                 (float) Math.toDegrees((float) Math.atan2((fy1 - fy2), (fx1 - fx2))),

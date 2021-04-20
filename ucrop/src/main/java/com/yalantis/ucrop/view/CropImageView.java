@@ -97,12 +97,12 @@ public class CropImageView extends TransformImageView {
      */
     public void cropAndSaveImage(@NonNull Bitmap.CompressFormat compressFormat, int compressQuality,
                                  @Nullable BitmapCropCallback cropCallback) {
-        //结束子线程
+        //取消缩放和平移动画
         cancelAllAnimations();
-        //设置要剪裁的图片，不需要位移动画
+        //设置要剪裁的图片,移动图片填充满裁剪区域，不需要位移动画
         setImageToWrapCropBounds(false);
 
-        //存储图片信息，四个参数分别为：mCropRect用于剪裁的图片矩形，当前图片要剪裁的矩形，当前放大的值，当前旋转的角度
+        //存储图片信息，四个参数分别为：mCropRect用于剪裁的图片矩形，当前图片要剪裁的矩形，当前缩放比例值，当前旋转的角度
         final ImageState imageState = new ImageState(
                 mCropRect, RectUtils.trapToRect(mCurrentImageCorners),
                 getCurrentScale(), getCurrentAngle());
@@ -113,7 +113,7 @@ public class CropImageView extends TransformImageView {
                 compressFormat, compressQuality,
                 getImageInputPath(), getImageOutputPath(), getExifInfo());
 
-        //剪裁操作放到AsyncTask中执行
+        //剪裁操作放到AsyncTask中执行,将原图片,裁剪信息和约束参数传入
         new BitmapCropTask(getContext(), getViewBitmap(), imageState, cropParameters, cropCallback)
                 .executeOnExecutor(Executors.newCachedThreadPool());
     }
@@ -281,9 +281,9 @@ public class CropImageView extends TransformImageView {
      * <p>
      * 在最小和最大缩放值范围内,缩放图片
      *
-     * @param deltaScale - scale value
-     * @param px         - scale center X
-     * @param py         - scale center Y
+     * @param deltaScale - scale value 缩放比例
+     * @param px         - scale center X 缩放中心点x
+     * @param py         - scale center Y 缩放中心点y
      */
     public void postScale(float deltaScale, float px, float py) {
         if (deltaScale > 1 && getCurrentScale() * deltaScale <= getMaxScale()) {
@@ -326,6 +326,7 @@ public class CropImageView extends TransformImageView {
      * crop bounds rectangle center. Using temporary variables this method checks this case.
      * 第一步：图片裁剪框偏移计算
      * 当用户手指移开时，要确保图片处于裁剪区域中，如果不处于，需要通过平移把它移过来,如果平移后还有空白,则缩放
+     * 如果需要计算缩放比例,则需要将裁剪矩形旋转到和图片平行状态,然后才能计算缩放比例
      * <p>
      * 确定在裁剪范围内没有空白区域
      * 计算出所有要做的转换，使得图片可以返回到裁剪区域内
@@ -364,7 +365,7 @@ public class CropImageView extends TransformImageView {
                 //获取偏移的距离,左和上缩进为正,右和下缩进值为负
                 final float[] imageIndents = calculateImageIndents();
 
-                //偏移的距离，横坐标加横坐标 纵坐标加纵坐标
+                //偏移的距离,这里是图片到裁剪框的距离,由于是图片要向裁剪框移动,所以取反，横坐标加横坐标 纵坐标加纵坐标
                 deltaX = -(imageIndents[0] + imageIndents[2]);
                 deltaY = -(imageIndents[1] + imageIndents[3]);
             } else {
@@ -422,11 +423,11 @@ public class CropImageView extends TransformImageView {
         float[] unrotatedImageCorners = Arrays.copyOf(mCurrentImageCorners, mCurrentImageCorners.length);
         float[] unrotatedCropBoundsCorners = RectUtils.getCornersFromRect(mCropRect);
 
-        //将图片和裁剪矩形的4个点击按图片旋转的相反方向进行坐标点映射.也就是图片回正,裁剪矩形旋转
+        //将图片和裁剪矩形的4个点按图片旋转的相反方向进行坐标点映射.也就是图片回正,裁剪矩形旋转
         mTempMatrix.mapPoints(unrotatedImageCorners);
         mTempMatrix.mapPoints(unrotatedCropBoundsCorners);
 
-        //计算包含各个顶点对应的最小矩形,一定要注意这个最小矩形是没有旋转的哈
+        //计算包含各个顶点对应的最小矩形
         RectF unrotatedImageRect = RectUtils.trapToRect(unrotatedImageCorners);
         RectF unrotatedCropRect = RectUtils.trapToRect(unrotatedCropBoundsCorners);
 
@@ -436,8 +437,9 @@ public class CropImageView extends TransformImageView {
         float deltaRight = unrotatedImageRect.right - unrotatedCropRect.right;
         float deltaBottom = unrotatedImageRect.bottom - unrotatedCropRect.bottom;
 
-        //两个矩形上下左右的缩进值,为0表示已经包含了,不用额外处理了,否则还需要进行缩进
+        //存储两个矩形上下左右的缩进值,为0表示已经包含了,不用额外处理了,否则还需要进行缩进
         float[] indents = new float[4];
+        //deltaLeft > 0代表图片left>裁剪框left,此时需要向相反方向缩进
         indents[0] = (deltaLeft > 0) ? deltaLeft : 0;
         indents[1] = (deltaTop > 0) ? deltaTop : 0;
         indents[2] = (deltaRight < 0) ? deltaRight : 0;
@@ -446,7 +448,7 @@ public class CropImageView extends TransformImageView {
         mTempMatrix.reset();
         //重新旋转矩阵
         mTempMatrix.setRotate(getCurrentAngle());
-        //将缩进值进行重新映射
+        //由于计算缩进值得时候,矩阵是旋转了的,所以最后要将缩进值进行重新映射
         mTempMatrix.mapPoints(indents);
 
         return indents;
@@ -578,6 +580,7 @@ public class CropImageView extends TransformImageView {
         if (drawable == null) {
             return;
         }
+
         calculateImageScaleBounds(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
     }
 
@@ -664,7 +667,7 @@ public class CropImageView extends TransformImageView {
         private final WeakReference<CropImageView> mCropImageView;
 
         /**
-         * 动画持续时间
+         * 动画持续时间和开始时间
          */
         private final long mDurationMs, mStartTime;
         /**

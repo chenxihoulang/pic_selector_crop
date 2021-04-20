@@ -27,18 +27,31 @@ import com.yalantis.ucrop.util.RotationGestureDetector;
  * 这样用户就会觉得是他在屏幕上拖动图片。
  */
 public class GestureCropImageView extends CropImageView {
-
+    /**
+     * 双击缩放动画持续时间
+     */
     private static final int DOUBLE_TAP_ZOOM_DURATION = 200;
 
+    /**
+     * 缩放手势
+     */
     private ScaleGestureDetector mScaleDetector;
+    /**
+     * 旋转手势
+     */
     private RotationGestureDetector mRotateDetector;
+    /**
+     * 拖动和双击放大手势
+     */
     private GestureDetector mGestureDetector;
 
     /**
      * 缩放手势的两个手指中心点位置
      */
     private float mMidPntX, mMidPntY;
-
+    /**
+     * 是否启用旋转和缩放手势
+     */
     private boolean mIsRotateEnabled = true, mIsScaleEnabled = true;
     /**
      * 从最小比例到最大比例可以通过5次tap完成
@@ -95,6 +108,7 @@ public class GestureCropImageView extends CropImageView {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if ((event.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_DOWN) {
+            //取消正在执行的动画,主要是停止 填充裁剪框空白区域和缩放图片到指定位置动画
             cancelAllAnimations();
         }
 
@@ -104,7 +118,7 @@ public class GestureCropImageView extends CropImageView {
             mMidPntY = (event.getY(0) + event.getY(1)) / 2;
         }
 
-        //双击监听和拖动监听
+        //双击和拖动手势监听
         mGestureDetector.onTouchEvent(event);
 
         //两指缩放监听
@@ -118,9 +132,10 @@ public class GestureCropImageView extends CropImageView {
         }
 
         if ((event.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP) {
-            //最后一指抬起时判断图片是否填充剪裁框
+            //最后一指抬起时判断图片是否填充剪裁框,没有填充,则通过平移和缩放填充满裁剪框
             setImageToWrapCropBounds();
         }
+
         return true;
     }
 
@@ -182,7 +197,5 @@ public class GestureCropImageView extends CropImageView {
             postRotate(rotationDetector.getAngle(), mMidPntX, mMidPntY);
             return true;
         }
-
     }
-
 }
